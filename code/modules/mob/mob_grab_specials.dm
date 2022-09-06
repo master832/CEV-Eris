@@ -43,12 +43,42 @@
 		if(!bad)
 			to_chat(user, SPAN_NOTICE("[H]'s skin is normal."))
 
+/obj/item/grab/proc/slow_bleeding(mob/living/carbon/human/H, mob/user, var/obj/item/organ/external/bodypart)
+
+	if(bodypart.is_stump() || !bodypart)
+		to_chat(user, SPAN_WARNING("They are missing that limb!"))
+		return
+	else
+		visible_message(SPAN_WARNING("[user] starts putting pressure on [H]'s wounds to stop the wounds on \his [bodypart.name] from bleeding!"))
+		if(!do_mob(user, H, 50))//5 seconds
+			to_chat(user, SPAN_NOTICE("You must stand still to stop the bleeding."))
+			return
+		else
+			visible_message(SPAN_NOTICE("[user] finishes putting pressure on [H]'s wounds."))
+			for(var/datum/wound/W in bodypart.wounds)
+				W.current_stage++
+				W.bleed_timer -= 5
+	//do not kill the grab
+
+
+/obj/item/grab/proc/force_vomit(mob/living/carbon/human/target, mob/attacker)
+	//no check for grab levels
+	visible_message(SPAN_WARNING("[attacker] places a finger in [target]'s throat, trying to induce vomiting."))//ewwies
+	attacker.next_move = world.time + 10 //1 second, also should prevent user from triggering this repeatedly
+	if(do_after(attacker, 10, progress=0) && target)
+		//vomiting sets on cd for 35 secs, which means it's impossible to spam this
+		target.vomit(TRUE)
+		//admin messaging
+		attacker.attack_log += text("\[[time_stamp()]\] <font color='red'>Induced vomiting [target.name] ([target.ckey])</font>")
+		target.attack_log += text("\[[time_stamp()]\] <font color='orange'>Forced to vomit by [attacker.name] ([attacker.ckey])</font>")
+		//do not kill the grab
+
 /obj/item/grab/proc/jointlock(mob/living/carbon/human/target, mob/attacker, var/target_zone)
 	if(state < GRAB_AGGRESSIVE)
 		to_chat(attacker, SPAN_WARNING("You require a better grab to do this."))
 		return
 	var/obj/item/organ/external/organ = target.get_organ(check_zone(target_zone))
-	if(!organ || organ.dislocated == -1)
+	if(!organ || organ.nerve_struck == -1)
 		return
 
 	if(!do_after(attacker, 7 SECONDS, target))
@@ -98,7 +128,7 @@
 	target.throw_at(get_edge_target_turf(target, kick_dir), 3, 1)
 	//deal damage AFTER the kick
 	var/damage = attacker.stats.getStat(STAT_ROB) / 3
-	target.damage_through_armor(damage, BRUTE, BP_GROIN, ARMOR_MELEE)
+	target.damage_through_armor(damage, BRUTE, BP_CHEST, ARMOR_MELEE)
 	attacker.regen_slickness()
 	//admin messaging
 	attacker.attack_log += text("\[[time_stamp()]\] <font color='red'>Dropkicked [target.name] ([target.ckey])</font>")
@@ -132,6 +162,21 @@
 		loc = null
 		qdel(src)
 
+/obj/item/grab/proc/gut_punch(mob/living/carbon/human/target, mob/living/carbon/human/attacker)
+	//no check for grab levels
+	visible_message(SPAN_DANGER("[attacker] thrusts \his fist in [target]'s guts!"))
+	var/damage = max(1, (20 - target.stats.getStat(STAT_TGH) / 2))//40+ TGH = 1 dmg
+	target.damage_through_armor(damage, BRUTE, BP_GROIN, ARMOR_MELEE, wounding_multiplier = 2)
+	//vomiting goes on cd for 35 secs, which means it's impossible to spam this
+	target.vomit(TRUE)
+	//admin messaging
+	attacker.attack_log += text("\[[time_stamp()]\] <font color='red'>Gutpunched [target.name] ([target.ckey])</font>")
+	target.attack_log += text("\[[time_stamp()]\] <font color='orange'>Gutpunched by [attacker.name] ([attacker.ckey])</font>")
+	//kill the grab
+	attacker.drop_from_inventory(src)
+	loc = null
+	qdel(src)
+
 /obj/item/grab/proc/headbutt(mob/living/carbon/human/target, mob/living/carbon/human/attacker)
 	if(!istype(attacker))
 		return
@@ -162,10 +207,7 @@
 	qdel(src)
 	return
 
-/obj/item/grab/proc/dislocate(mob/living/carbon/human/target, mob/living/attacker, var/target_zone)
-	if(state < GRAB_NECK)
-		to_chat(attacker, SPAN_WARNING("You require a better grab to do this."))
-		return
+/obj/item/grab/proc/nerve_strike(mob/living/carbon/human/target, mob/living/attacker, var/target_zone)
 	if(target.grab_joint(attacker, target_zone))
 		return
 
@@ -204,7 +246,7 @@
 
 	if(can_eat)
 		var/mob/living/carbon/attacker = user
-		user.visible_message(SPAN_DANGER("[user] is attempting to devour [target]!"))
+		user.visible_message(SPAN_DANGER("[user] is atEting to devour [target]!"))
 		if(can_eat == 2)
 			if(!do_mob(user, target, 30)) return
 		else
