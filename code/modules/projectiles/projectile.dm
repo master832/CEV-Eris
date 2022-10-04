@@ -273,7 +273,7 @@
 		recoil = leftmost_bit(recoil) //LOG2 calculation
 	else
 		recoil = 0
-	distance = leftmost_bit(distance)
+	distance = distance <= 3 ? 5 - max(1,distance) : leftmost_bit(distance)
 
 	def_zone = ran_zone(def_zone, 100 - (distance + recoil) * 10)
 
@@ -282,7 +282,7 @@
 	var/hit_mod = 0
 	switch(target_mob.mob_size)
 		if(120 to INFINITY)
-
+			hit_mod = -6
 		if(80 to 120)
 			hit_mod = -4
 		if(40 to 80)
@@ -299,6 +299,9 @@
 	if(target_mob == original)
 		var/acc_mod = leftmost_bit(projectile_accuracy)
 		hit_mod -= acc_mod //LOG2 on the projectile accuracy
+
+	// DEBUG FOR TEST
+	visible_message(SPAN_NOTICE("\The [src] had [(base_miss_chance[def_zone] + hit_mod) * 10]% chance to miss [target_mob]!"))
 	return prob((base_miss_chance[def_zone] + hit_mod) * 10)
 
 //Called when the projectile intercepts a mob. Returns 1 if the projectile hit the mob, 0 if it missed and should keep flying.
@@ -310,6 +313,20 @@
 	miss_modifier = 0
 
 	var/result = PROJECTILE_CONTINUE
+
+	if(target_mob != original) // If mob was not clicked on / is not an NPC's target, checks if the mob is concealed by cover
+		var/turf/cover_loc = get_step(get_turf(target_mob), get_dir(get_turf(target_mob), starting))
+		for(var/obj/O in cover_loc)
+			if(istype(O,/obj/structure/low_wall) || istype(O,/obj/machinery/deployable/barrier) || istype(O,/obj/structure/barricade) || istype(O,/obj/structure/table))
+				if(!silenced)
+					visible_message(SPAN_NOTICE("\The [target_mob] ducks behind \the [O], narrowly avoiding \the [src]!"))
+				return FALSE
+		for(var/obj/structure/table/O in get_turf(target_mob))
+			if(istype(O) && O.flipped && (get_dir(get_turf(target_mob), starting) == O.dir))
+				if(!silenced)
+					visible_message(SPAN_NOTICE("\The [target_mob] ducks behind \the [O], narrowly avoiding \the [src]!"))
+				return FALSE
+
 
 	if(target_mob != original) // If mob was not clicked on / is not an NPC's target, checks if the mob is concealed by cover
 		var/turf/cover_loc = get_step(get_turf(target_mob), get_dir(get_turf(target_mob), starting))
