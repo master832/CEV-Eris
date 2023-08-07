@@ -406,7 +406,7 @@
 	color = "#801E28"
 
 /datum/reagent/medicine/slimejelly/affect_blood(mob/living/carbon/M, alien, effect_multiplier)
-	if(M.species.name == "Slime")
+	if(M.species.name == SPECIES_SLIME)
 		M.heal_organ_damage(1 * effect_multiplier, 1 * effect_multiplier)
 		return
 	if(prob(10))
@@ -532,9 +532,9 @@
 /datum/reagent/toxin/slimetoxin/affect_blood(mob/living/carbon/M, alien, effect_multiplier)
 	if(ishuman(M))
 		var/mob/living/carbon/human/H = M
-		if(H.species.name != "Slime")
+		if(H.species.name != SPECIES_SLIME)
 			to_chat(M, SPAN_DANGER("Your flesh rapidly mutates!"))
-			H.set_species("Slime")
+			H.set_species(SPECIES_SLIME)
 
 /datum/reagent/toxin/aslimetoxin
 	name = "Advanced Mutation Toxin"
@@ -685,7 +685,7 @@
 	if(!ishuman(M))
 		return
 	var/mob/living/carbon/human/H = M
-	var/obj/item/organ/internal/heart/S = H.random_organ_by_process(OP_HEART)
+	var/obj/item/organ/internal/vital/heart/S = H.random_organ_by_process(OP_HEART)
 	if(istype(S))
 		S.take_damage(dose/2, FALSE, TOX)
 	var/obj/item/organ/internal/liver/L = H.random_organ_by_process(OP_LIVER)
@@ -856,6 +856,7 @@
 
 /datum/reagent/toxin/tar
 	name = "Tar"
+	id = "tar"
 	description = "A dark, viscous liquid."
 	taste_description = "petroleum"
 	color = "#140b30"

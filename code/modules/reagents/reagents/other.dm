@@ -201,8 +201,7 @@
 	withdrawal_threshold = 30
 
 /datum/reagent/adrenaline/affect_blood(mob/living/carbon/M, alien, effect_multiplier)
-	M.SetParalysis(0)
-	M.SetWeakened(0)
+	M.add_chemical_effect(CE_PAINKILLER, 15)
 	M.stats.addTempStat(STAT_TGH, STAT_LEVEL_ADEPT * effect_multiplier, STIM_TIME, "adrenaline")
 	M.add_chemical_effect(CE_TOXIN, 3)
 
@@ -547,7 +546,7 @@
 
 	if(ishuman(M))
 		var/mob/living/carbon/human/H = M
-		var/obj/item/organ/internal/heart/heart = H.random_organ_by_process(OP_HEART)
+		var/obj/item/organ/internal/vital/heart/heart = H.random_organ_by_process(OP_HEART)
 		if(heart)
 			heart.damage += 0.5
 			if(prob(30))
@@ -560,7 +559,7 @@
 
 	if(ishuman(M))
 		var/mob/living/carbon/human/H = M
-		var/obj/item/organ/internal/heart/heart = H.random_organ_by_process(OP_HEART)
+		var/obj/item/organ/internal/vital/heart/heart = H.random_organ_by_process(OP_HEART)
 		if(heart)
 			heart.die()
 

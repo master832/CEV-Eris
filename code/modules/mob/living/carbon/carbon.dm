@@ -7,10 +7,6 @@
 	reagents = bloodstr
 	..()
 
-/mob/living/carbon/Life()
-	. = ..()
-	handle_viruses()
-
 /mob/living/carbon/Destroy()
 	QDEL_NULL(metabolism_effects)
 	reagents = null
@@ -106,8 +102,7 @@
 			"\red You hear a heavy electrical crack." \
 		)
 		SEND_SIGNAL_OLD(src, COMSIG_CARBON_ELECTROCTE)
-		Stun(10)//This should work for now, more is really silly and makes you lay there forever
-		Weaken(10)
+		Weaken(max(min(10,round(shock_damage / 10 )), 2) SECONDS)
 	else
 		src.visible_message(
 			"\red [src] was mildly shocked by the [source].", \
@@ -126,6 +121,10 @@
 	//We cache the held items before and after swapping using get active hand.
 	//This approach is future proof and will support people who possibly have >2 hands
 	var/obj/item/prev_held = get_active_hand()
+
+	if(prev_held)
+		if(prev_held.wielded)
+			prev_held.unwield(src)
 
 	//Now we do the hand swapping
 	src.hand = !( src.hand )
@@ -242,6 +241,9 @@
 /mob/living/carbon/proc/eyecheck()
 	return 0
 
+/mob/living/carbon/proc/earcheck()
+	return 0
+
 /mob/living/carbon/flash(duration = 0, drop_items = FALSE, doblind = FALSE, doblurry = FALSE)
 	if(blinded)
 		return
@@ -310,7 +312,6 @@
 
 		unEquip(item, loc)
 		item.throw_at(target, item.throw_range, item.throw_speed, src)
-		item.throwing = FALSE
 
 /mob/living/carbon/fire_act(datum/gas_mixture/air, exposed_temperature, exposed_volume)
 	..()
@@ -358,8 +359,6 @@
 	if(now_pushing || !yes)
 		return
 	..()
-	if(iscarbon(AM) && prob(10))
-		src.spread_disease_to(AM, "Contact")
 
 /mob/living/carbon/cannot_use_vents()
 	return

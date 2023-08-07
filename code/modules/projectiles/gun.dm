@@ -29,16 +29,18 @@
 	rarity_value = 5
 	spawn_frequency = 10
 
+	health = 600
+	maxHealth = 600
+
 	var/list/custom_default = list() // used to preserve changes to stats past refresh_upgrades proccing
 	var/damage_multiplier = 1 //Multiplies damage of projectiles fired from this gun
-	var/style_damage_multiplier = 1 // multiplies style damage of projectiles fired from this gun
 	var/penetration_multiplier = 0 //Sum of armor penetration of projectiles fired from this gun
 	var/pierce_multiplier = 0 //Additing wall penetration to projectiles fired from this gun
 	var/ricochet_multiplier = 1 //multiplier for how much projectiles fired from this gun can ricochet, modified by the bullet blender weapon mod
 	var/burst = 1
 	var/fire_delay = 6 	//delay after shooting before the gun can be used again
 	var/burst_delay = 2	//delay between shots, if firing in bursts
-	var/move_delay = 1
+	var/move_delay = 0
 	var/fire_sound = 'sound/weapons/Gunshot.ogg'
 	var/rigged = FALSE
 	var/fire_sound_text = "gunshot"
@@ -46,8 +48,7 @@
 	var/datum/recoil/recoil // Reference to the recoil datum in datum/recoil.dm
 	var/list/init_recoil = list(0, 0, 0) // For updating weapon mods
 
-	var/braced = FALSE //for gun_brace proc.
-	var/braceable = 1 //can the gun be used for gun_brace proc, modifies recoil. If the gun has foregrip mod installed, it's not braceable. Bipod mod increases value by 1.
+	var/braceable = 1 // Offset reduction based on whether the gun is braced
 
 	var/list/gun_parts = list(/obj/item/part/gun = 1 ,/obj/item/stack/material/steel = 4)
 
@@ -119,6 +120,8 @@
 		..()
 
 
+
+// Modular guns overwrite this
 /obj/item/gun/attackby(obj/item/I, mob/living/user, params)
 	var/tool_type = I.get_tool_type(user, list(QUALITY_BOLT_TURNING, serial_type ? QUALITY_HAMMERING : null), src)
 	switch(tool_type)
@@ -164,13 +167,14 @@
 	initial_zoom_factors = zoom_factors.Copy()
 	. = ..()
 	initialize_firemodes()
+	initialize_firemode_actions()
 	initialize_scope()
 	//Properly initialize the default firing mode
 	if (firemodes.len)
 		set_firemode(sel_mode)
 
 	if(!restrict_safety)
-		verbs += /obj/item/gun/proc/toggle_safety_verb//addint it to all guns
+		verbs += /obj/item/gun/proc/toggle_safety_verb  //addint it to all guns
 
 		var/obj/screen/item_action/action = new /obj/screen/item_action/top_bar/gun/safety
 		action.owner = src
@@ -204,7 +208,7 @@
 	firemodes = null
 	return ..()
 
-/obj/item/gun/proc/set_item_state(state, hands = FALSE, back = FALSE, onsuit = FALSE)
+/obj/item/gun/proc/set_item_state(state, hands = TRUE, back = FALSE, onsuit = FALSE)
 	var/wield_state
 	if(wielded_item_state)
 		wield_state = wielded_item_state
@@ -214,6 +218,7 @@
 		if(wield_state && wielded)//Because most of the time the "normal" icon state is held in one hand. This could be expanded to be less hacky in the future.
 			item_state_slots[slot_l_hand_str] = "lefthand"  + wield_state
 			item_state_slots[slot_r_hand_str] = "righthand" + wield_state
+
 		else
 			item_state_slots[slot_l_hand_str] = "lefthand"  + state
 			item_state_slots[slot_r_hand_str] = "righthand" + state
@@ -221,13 +226,13 @@
 
 	var/carry_state = inversed_carry
 	if(back && !carry_state)
-		item_state_slots[slot_back_str]   = "back"      + state
+		item_state_slots[slot_back_str]   = "back"		+ state
 	if(back && carry_state)
-		item_state_slots[slot_back_str]   = "onsuit"      + state
+		item_state_slots[slot_back_str]   = "onsuit"	+ state
 	if(onsuit && !carry_state)
 		item_state_slots[slot_s_store_str]= "onsuit"    + state
 	if(onsuit && carry_state)
-		item_state_slots[slot_s_store_str]= "back"    + state
+		item_state_slots[slot_s_store_str]= "back"		+ state
 
 /obj/item/gun/update_icon()
 	if(wielded_item_state)
@@ -237,9 +242,9 @@
 				item_state_slots[slot_r_hand_str] = "righthand" + wielded_item_state
 			else
 				item_state_slots[slot_l_hand_str] = "lefthand"
-				item_state_slots[slot_r_hand_str] = "righthand"
+			item_state_slots[slot_r_hand_str] = "righthand"
 		else//Otherwise we can just pull from the generic left and right hand icons.
-			if(wielded)
+			if(wielded_icon)
 				item_state_slots[slot_l_hand_str] = wielded_item_state
 				item_state_slots[slot_r_hand_str] = wielded_item_state
 			else
@@ -300,7 +305,7 @@
 					)
 				user.drop_item()
 			if(rigged > TRUE)
-				explosion(get_turf(src), 1, 2, 3, 3)
+				explosion(get_turf(src), 250, 100)
 				qdel(src)
 			return FALSE
 	return TRUE
@@ -392,7 +397,6 @@
 
 		projectile.multiply_projectile_damage(damage_multiplier)
 
-		projectile.multiply_projectile_style_damage(style_damage_multiplier)
 
 		projectile.add_projectile_penetration(penetration_multiplier)
 
@@ -441,7 +445,7 @@
 		next_fire_time = world.time + fire_delay < GUN_MINIMUM_FIRETIME ? GUN_MINIMUM_FIRETIME : fire_delay
 		user.setClickCooldown(fire_delay)
 
-	user.set_move_cooldown(move_delay)
+	user.set_move_cooldown(abs(move_delay))
 	if(muzzle_flash)
 		set_light(0)
 
@@ -475,7 +479,7 @@
 		playsound(user, fire_sound_silenced, 15, 1, -5)
 	else
 		playsound(user, fire_sound, 60, 1)
-
+		/*
 		if(reflex)
 			user.visible_message(
 				"<span class='reflex_shoot'><b>\The [user] fires \the [src][pointblank ? " point blank at \the [target]":""] by reflex!</b></span>",
@@ -488,6 +492,7 @@
 				SPAN_WARNING("You fire \the [src]!"),
 				"You hear a [fire_sound_text]!"
 				)
+		*/
 
 		if(muzzle_flash)
 			set_light(muzzle_flash)
@@ -497,13 +502,7 @@
 
 /obj/item/gun/proc/kickback(mob/living/user, obj/item/projectile/P)
 	var/base_recoil = recoil.getRating(RECOIL_BASE)
-	var/brace_recoil = 0
 	var/unwielded_recoil = 0
-
-	if(!braced)
-		brace_recoil = recoil.getRating(RECOIL_TWOHAND)
-	else if(braceable > 1)
-		base_recoil /= 4 // With a bipod, you can negate most of your recoil
 
 	if(!wielded)
 		unwielded_recoil = recoil.getRating(RECOIL_ONEHAND)
@@ -521,20 +520,7 @@
 			if(1.5 to INFINITY)
 				to_chat(user, SPAN_WARNING("You struggle to keep \the [src] on target with just one hand!"))
 
-	else if(brace_recoil)
-		switch(recoil.getRating(RECOIL_BRACE_LEVEL))
-			if(0.6 to 0.8)
-				if(prob(25))
-					to_chat(user, SPAN_WARNING("Your aim wavers slightly."))
-			if(0.8 to 1)
-				if(prob(50))
-					to_chat(user, SPAN_WARNING("Your aim wavers as you fire \the [src] while carrying it."))
-			if(1 to 1.2)
-				to_chat(user, SPAN_WARNING("You have trouble keeping \the [src] on target while carrying it!"))
-			if(1.2 to INFINITY)
-				to_chat(user, SPAN_WARNING("You struggle to keep \the [src] on target while carrying it!"))
-
-	user.handle_recoil(src, (base_recoil + brace_recoil + unwielded_recoil) * P.recoil)
+	user.handle_recoil(src, (base_recoil + unwielded_recoil) * P.recoil)
 
 /obj/item/gun/proc/process_point_blank(obj/item/projectile/P, mob/user, atom/target)
 	if(!istype(P))
@@ -584,7 +570,7 @@
 
 	if(params)
 		P.set_clickpoint(params)
-	var/offset = user.calculate_offset(init_offset_with_brace())
+	var/offset = user.calculate_offset(init_offset_with_brace(user))
 /*
 	var/remainder = offset % 4
 	offset /= 4
@@ -606,10 +592,15 @@
 	return !P.launch_from_gun(target, user, src, target_zone, angle_offset = offset)
 
 //Support proc for calculate_offset
-/obj/item/gun/proc/init_offset_with_brace()
+/obj/item/gun/proc/init_offset_with_brace(mob/living/user)
 	var/offset = init_offset
-	if(braced)
-		offset -= braceable * 3 // Bipod doubles effect
+
+	var/datum/movement_handler/mob/delay/delay = user.GetMovementHandler(/datum/movement_handler/mob/delay)
+	if(delay && (world.time < delay.next_move))
+		offset += recoil.getRating(RECOIL_TWOHAND)
+	else if(braceable)
+		offset -= braceable // With a bipod, you can negate most of your recoil
+
 	return offset
 
 //Suicide handling.
@@ -658,25 +649,6 @@
 		handle_click_empty(user)
 		mouthshoot = FALSE
 		return
-
-/obj/item/gun/proc/gun_brace(mob/living/user, atom/target)
-	if(braceable && !user.is_busy)
-		var/atom/original_loc = user.loc
-		var/brace_direction = get_dir(user, target)
-		user.is_busy = TRUE
-		user.facing_dir = null
-		to_chat(user, SPAN_NOTICE("You brace your weapon on \the [target]."))
-		braced = TRUE
-		while(user.loc == original_loc && user.dir == brace_direction)
-			sleep(2)
-		to_chat(user, SPAN_NOTICE("You stop bracing your weapon."))
-		braced = FALSE
-		user.is_busy = FALSE
-	else
-		if(user.is_busy)
-			to_chat(user, SPAN_NOTICE("You are already bracing your weapon!"))
-		else
-			to_chat(user, SPAN_WARNING("You can\'t properly place your weapon on \the [target] because of the foregrip!"))
 
 /obj/item/gun/proc/toggle_scope(mob/living/user, switchzoom = FALSE)
 	//looking through a scope limits your periphereal vision
@@ -736,6 +708,8 @@
 		var/list/L = init_firemodes[i]
 		add_firemode(L)
 
+
+/obj/item/gun/proc/initialize_firemode_actions()
 	var/obj/screen/item_action/action = locate(/obj/screen/item_action/top_bar/gun/fire_mode) in hud_actions
 	if(firemodes.len > 1)
 		if(!action)
@@ -830,7 +804,7 @@
 	if(safety)
 		user.remove_cursor()
 	else
-		user.update_cursor(src)
+		user.update_cursor()
 
 /obj/item/gun/proc/toggle_carry_state(mob/living/user)
 	inversed_carry = !inversed_carry
@@ -924,7 +898,7 @@
 					"name" = i,
 					"value" = recoilList[i]
 					))
-				total_recoil += recoilList[i]
+				total_recoil += i == "Movement Penalty" ? recoilList[i] / 10 : recoilList[i] / 10
 		data["recoil_info"] = recoil_vals
 
 	data["total_recoil"] = total_recoil
@@ -1016,7 +990,7 @@
 	force = initial(force)
 	armor_divisor = initial(armor_divisor)
 	sharp = initial(sharp)
-	braced = initial(braced)
+	braceable = initial(braceable)
 	recoil = getRecoil(init_recoil[1], init_recoil[2], init_recoil[3])
 	flashlight_attachment = initial(flashlight_attachment)
 	verbs -= /obj/item/gun/proc/toggle_light
@@ -1032,6 +1006,8 @@
 	//Now lets have each upgrade reapply its modifications
 	SEND_SIGNAL_OLD(src, COMSIG_ADDVAL, src)
 	SEND_SIGNAL_OLD(src, COMSIG_APPVAL, src)
+
+	initialize_firemode_actions()
 
 	if(firemodes.len)
 		very_unsafe_set_firemode(sel_mode) // Reset the firemode so it gets the new changes
