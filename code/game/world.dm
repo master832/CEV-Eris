@@ -22,6 +22,12 @@ var/global/datum/global_init/init = new ()
 	initialize_chemical_reagents()
 	initialize_chemical_reactions()
 
+
+	// Set up roundstart seed list.
+	plant_controller = new()
+
+	initialize_cooking_recipes()
+
 	qdel(src) //we're done
 
 /datum/global_init/Destroy()
@@ -105,9 +111,6 @@ var/game_id
 	update_status()
 
 	. = ..()
-
-	// Set up roundstart seed list.
-	plant_controller = new()
 
 	// This is kinda important. Set up details of what the hell things are made of.
 	populate_material_list()
@@ -306,7 +309,7 @@ var/world_topic_spam_protect_time = world.timeofday
 	if (config && config.server_name)
 		s += "<b>[config.server_name]</b> &#8212; "
 
-	s += "<b>[station_name()]</b>";
+	s += "<b>[station_name]</b>";
 	s += " ("
 	s += "<a href=\"http://\">" //Change this to wherever you want the hub to link to.
 //	s += "[game_version]"

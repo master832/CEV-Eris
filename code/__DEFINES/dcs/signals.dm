@@ -81,7 +81,7 @@
 
 // /mob/living signals
 #define COMSIG_LIVING_STUN_EFFECT "stun_effect_act"			 //mob/living/proc/stun_effect_act()
-#define COMSIG_CARBON_HAPPY   "carbon_happy"				   //drugs o ethanol in blood
+#define COMSIG_CARBON_HAPPY   "carbon_happy"				   //drugs or ethanol in blood
 
 // /mob/living/carbon signals
 #define COMSIG_CARBON_ELECTROCTE "carbon_electrocute act"	   //mob/living/carbon/electrocute_act()
@@ -109,6 +109,7 @@
 #define COMSIG_OBJ_TECHNO_TRIBALISM "techno_tribalism"
 #define COMSIG_OBJ_FACTION_ITEM_DESTROY "faction_item_destroy"
 #define SWORD_OF_TRUTH_OF_DESTRUCTION "sword_of_truth"
+#define COMSIG_EXTRA_EXAMINE "send_extra_examine"
 
 //machinery
 #define COMSIG_AREA_APC_OPERATING "area_operating"  //from apc process()
